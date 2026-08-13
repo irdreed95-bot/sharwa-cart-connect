@@ -299,7 +299,10 @@ function Dashboard() {
             className="grid gap-4 sm:grid-cols-2"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!form.name.trim()) return toast.error("اسم المنتج مطلوب");
+              if (!form.name.trim()) {
+                toast.error("اسم المنتج مطلوب");
+                return;
+              }
               save.mutate(form);
             }}
           >
