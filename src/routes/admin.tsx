@@ -16,7 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatIQD, PRODUCT_CATEGORIES, STORE_NAME, type Product } from "@/lib/store";
+import {
+  formatIQD,
+  PRODUCT_CATEGORIES,
+  PRODUCT_SELECT,
+  STORE_NAME,
+  type Product,
+} from "@/lib/store";
+
+const PANEL_PASSWORD = "𝐃𝐈𝐑𝐎𝐍•𝐅𝐍𝐑";
+const PANEL_KEY = "sharwa-panel-unlocked";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -42,6 +51,9 @@ type FormState = {
   description: string;
   image_url: string;
   in_stock: boolean;
+  images: string[];
+  features: string;
+  usage_text: string;
 };
 
 const emptyForm: FormState = {
@@ -51,12 +63,61 @@ const emptyForm: FormState = {
   description: "",
   image_url: "",
   in_stock: true,
+  images: [],
+  features: "",
+  usage_text: "",
 };
+
+function PanelGate({ onUnlock }: { onUnlock: () => void }) {
+  const [value, setValue] = useState("");
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (value === PANEL_PASSWORD) {
+            sessionStorage.setItem(PANEL_KEY, "1");
+            onUnlock();
+          } else {
+            toast.error("كلمة المرور غير صحيحة");
+          }
+        }}
+        className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-card p-6 shadow-luxe"
+      >
+        <div className="text-center">
+          <h1 className="font-display text-xl font-bold text-gold">منطقة محظورة</h1>
+          <p className="mt-1 text-xs text-muted-foreground">أدخل كلمة مرور الدخول للوحة</p>
+        </div>
+        <Input
+          type="password"
+          dir="ltr"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="كلمة مرور اللوحة"
+          required
+        />
+        <Button
+          type="submit"
+          className="w-full bg-gold font-bold text-primary-foreground hover:opacity-90"
+        >
+          دخول
+        </Button>
+      </form>
+    </div>
+  );
+}
 
 function AdminPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
+  const [unlocked, setUnlocked] = useState(false);
+
+  useEffect(() => {
+    setUnlocked(sessionStorage.getItem(PANEL_KEY) === "1");
+  }, []);
+
 
   useEffect(() => {
     let active = true;
@@ -86,6 +147,8 @@ function AdminPage() {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  if (!unlocked) return <PanelGate onUnlock={() => setUnlocked(true)} />;
 
   if (checking) {
     return (
@@ -207,7 +270,7 @@ function Dashboard() {
     queryFn: async (): Promise<Product[]> => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, category, price, description, image_url, in_stock")
+        .select(PRODUCT_SELECT)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as Product[];
@@ -223,6 +286,12 @@ function Dashboard() {
         description: values.description.trim(),
         image_url: values.image_url.trim(),
         in_stock: values.in_stock,
+        images: values.images.filter((s) => s.trim().length > 0),
+        features: values.features
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        usage_text: values.usage_text.trim(),
       };
       if (values.id) {
         const { error } = await supabase.from("products").update(payload).eq("id", values.id);
@@ -254,27 +323,37 @@ function Dashboard() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر الحذف"),
   });
 
-  async function handleUpload(file: File) {
+  async function uploadOne(file: File): Promise<string> {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("product-images").upload(path, file, {
+      cacheControl: "31536000",
+      upsert: false,
+    });
+    if (error) throw error;
+    const { data, error: signError } = await supabase.storage
+      .from("product-images")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signError) throw signError;
+    return data.signedUrl;
+  }
+
+  async function handleUpload(files: File[], target: "main" | "gallery") {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file, {
-        cacheControl: "31536000",
-        upsert: false,
-      });
-      if (error) throw error;
-      const { data, error: signError } = await supabase.storage
-        .from("product-images")
-        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (signError) throw signError;
-      setForm((f) => ({ ...f, image_url: data.signedUrl }));
-      toast.success("تم رفع الصورة");
+      const urls = await Promise.all(files.map(uploadOne));
+      setForm((f) =>
+        target === "main"
+          ? { ...f, image_url: urls[0] ?? f.image_url }
+          : { ...f, images: [...f.images, ...urls] },
+      );
+      toast.success("تم رفع الصور");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "تعذر رفع الصورة");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+      if (galleryRef.current) galleryRef.current.value = "";
     }
   }
 
@@ -456,6 +535,9 @@ function Dashboard() {
                       description: p.description,
                       image_url: p.image_url,
                       in_stock: p.in_stock,
+                      images: p.images ?? [],
+                      features: (p.features ?? []).join("\n"),
+                      usage_text: p.usage_text ?? "",
                     })
                   }
                 >
