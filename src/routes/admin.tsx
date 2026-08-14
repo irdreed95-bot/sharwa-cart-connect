@@ -16,7 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatIQD, PRODUCT_CATEGORIES, STORE_NAME, type Product } from "@/lib/store";
+import {
+  formatIQD,
+  PRODUCT_CATEGORIES,
+  PRODUCT_SELECT,
+  STORE_NAME,
+  type Product,
+} from "@/lib/store";
+
+const PANEL_PASSWORD = "𝐃𝐈𝐑𝐎𝐍•𝐅𝐍𝐑";
+const PANEL_KEY = "sharwa-panel-unlocked";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -42,6 +51,9 @@ type FormState = {
   description: string;
   image_url: string;
   in_stock: boolean;
+  images: string[];
+  features: string;
+  usage_text: string;
 };
 
 const emptyForm: FormState = {
@@ -51,7 +63,50 @@ const emptyForm: FormState = {
   description: "",
   image_url: "",
   in_stock: true,
+  images: [],
+  features: "",
+  usage_text: "",
 };
+
+function PanelGate({ onUnlock }: { onUnlock: () => void }) {
+  const [value, setValue] = useState("");
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (value === PANEL_PASSWORD) {
+            sessionStorage.setItem(PANEL_KEY, "1");
+            onUnlock();
+          } else {
+            toast.error("كلمة المرور غير صحيحة");
+          }
+        }}
+        className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-card p-6 shadow-luxe"
+      >
+        <div className="text-center">
+          <h1 className="font-display text-xl font-bold text-gold">منطقة محظورة</h1>
+          <p className="mt-1 text-xs text-muted-foreground">أدخل كلمة مرور الدخول للوحة</p>
+        </div>
+        <Input
+          type="password"
+          dir="ltr"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="كلمة مرور اللوحة"
+          required
+        />
+        <Button
+          type="submit"
+          className="w-full bg-gold font-bold text-primary-foreground hover:opacity-90"
+        >
+          دخول
+        </Button>
+      </form>
+    </div>
+  );
+}
 
 function AdminPage() {
   const [userId, setUserId] = useState<string | null>(null);
