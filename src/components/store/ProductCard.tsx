@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { formatIQD, type Product } from "@/lib/store";
 import { useCart } from "@/lib/cart";
@@ -8,7 +9,11 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-luxe">
-      <div className="relative aspect-square overflow-hidden bg-secondary">
+      <Link
+        to="/product/$id"
+        params={{ id: product.id }}
+        className="relative block aspect-square overflow-hidden bg-secondary"
+      >
         <img
           src={product.image_url}
           alt={product.name}
@@ -20,10 +25,12 @@ export function ProductCard({ product }: { product: Product }) {
             غير متوفر
           </span>
         )}
-      </div>
+      </Link>
       <div className="flex flex-1 flex-col gap-1 p-3">
         <span className="text-[11px] text-muted-foreground">{product.category}</span>
-        <h3 className="line-clamp-2 text-sm font-semibold">{product.name}</h3>
+        <Link to="/product/$id" params={{ id: product.id }}>
+          <h3 className="line-clamp-2 text-sm font-semibold hover:text-primary">{product.name}</h3>
+        </Link>
         <div className="mt-auto flex items-center justify-between gap-2 pt-2">
           <span className="font-display text-sm font-bold text-primary">
             {formatIQD(Number(product.price))}
