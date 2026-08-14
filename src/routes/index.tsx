@@ -6,7 +6,7 @@ import { Navbar } from "@/components/store/Navbar";
 import { CategoryBar } from "@/components/store/CategoryBar";
 import { ProductCard } from "@/components/store/ProductCard";
 import { CartSheet } from "@/components/store/CartSheet";
-import { STORE_NAME, type Product } from "@/lib/store";
+import { PRODUCT_SELECT, STORE_NAME, type Product } from "@/lib/store";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/")({
@@ -32,24 +32,34 @@ export const Route = createFileRoute("/")({
 
 function StorePage() {
   const [category, setCategory] = useState<string>("الكل");
+  const [query, setQuery] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["products"],
     queryFn: async (): Promise<Product[]> => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, category, price, description, image_url, in_stock")
+        .select(PRODUCT_SELECT)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as Product[];
     },
   });
 
-  const products = (data ?? []).filter((p) => category === "الكل" || p.category === category);
+  const search = query.trim().toLowerCase();
+  const products = (data ?? []).filter((p) => {
+    const matchesCategory = category === "الكل" || p.category === category;
+    const matchesSearch =
+      !search ||
+      p.name.toLowerCase().includes(search) ||
+      p.category.toLowerCase().includes(search) ||
+      (p.description ?? "").toLowerCase().includes(search);
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <Navbar query={query} onQueryChange={setQuery} />
       <CategoryBar active={category} onChange={setCategory} />
 
       <main className="mx-auto max-w-6xl px-4 pb-16">
@@ -70,7 +80,9 @@ function StorePage() {
             ))}
           </div>
         ) : products.length === 0 ? (
-          <p className="py-16 text-center text-muted-foreground">لا توجد منتجات في هذا القسم بعد.</p>
+          <p className="py-16 text-center text-muted-foreground">
+            {search ? "لا توجد نتائج مطابقة لبحثك." : "لا توجد منتجات في هذا القسم بعد."}
+          </p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {products.map((product) => (
