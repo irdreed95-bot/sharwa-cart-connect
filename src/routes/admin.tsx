@@ -148,6 +148,8 @@ function AdminPage() {
     };
   }, []);
 
+  if (!unlocked) return <PanelGate onUnlock={() => setUnlocked(true)} />;
+
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center text-muted-foreground">
@@ -268,7 +270,7 @@ function Dashboard() {
     queryFn: async (): Promise<Product[]> => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, category, price, description, image_url, in_stock")
+        .select(PRODUCT_SELECT)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as Product[];
@@ -284,6 +286,12 @@ function Dashboard() {
         description: values.description.trim(),
         image_url: values.image_url.trim(),
         in_stock: values.in_stock,
+        images: values.images.filter((s) => s.trim().length > 0),
+        features: values.features
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        usage_text: values.usage_text.trim(),
       };
       if (values.id) {
         const { error } = await supabase.from("products").update(payload).eq("id", values.id);
@@ -315,27 +323,37 @@ function Dashboard() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "تعذر الحذف"),
   });
 
-  async function handleUpload(file: File) {
+  async function uploadOne(file: File): Promise<string> {
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("product-images").upload(path, file, {
+      cacheControl: "31536000",
+      upsert: false,
+    });
+    if (error) throw error;
+    const { data, error: signError } = await supabase.storage
+      .from("product-images")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signError) throw signError;
+    return data.signedUrl;
+  }
+
+  async function handleUpload(files: File[], target: "main" | "gallery") {
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("product-images").upload(path, file, {
-        cacheControl: "31536000",
-        upsert: false,
-      });
-      if (error) throw error;
-      const { data, error: signError } = await supabase.storage
-        .from("product-images")
-        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (signError) throw signError;
-      setForm((f) => ({ ...f, image_url: data.signedUrl }));
-      toast.success("تم رفع الصورة");
+      const urls = await Promise.all(files.map(uploadOne));
+      setForm((f) =>
+        target === "main"
+          ? { ...f, image_url: urls[0] ?? f.image_url }
+          : { ...f, images: [...f.images, ...urls] },
+      );
+      toast.success("تم رفع الصور");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "تعذر رفع الصورة");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+      if (galleryRef.current) galleryRef.current.value = "";
     }
   }
 
@@ -517,6 +535,9 @@ function Dashboard() {
                       description: p.description,
                       image_url: p.image_url,
                       in_stock: p.in_stock,
+                      images: p.images ?? [],
+                      features: (p.features ?? []).join("\n"),
+                      usage_text: p.usage_text ?? "",
                     })
                   }
                 >
