@@ -19,34 +19,43 @@ export type Database = {
           category: string
           created_at: string
           description: string
+          features: string[]
           id: string
           image_url: string
+          images: string[]
           in_stock: boolean
           name: string
           price: number
           updated_at: string
+          usage_text: string
         }
         Insert: {
           category: string
           created_at?: string
           description?: string
+          features?: string[]
           id?: string
           image_url?: string
+          images?: string[]
           in_stock?: boolean
           name: string
           price?: number
           updated_at?: string
+          usage_text?: string
         }
         Update: {
           category?: string
           created_at?: string
           description?: string
+          features?: string[]
           id?: string
           image_url?: string
+          images?: string[]
           in_stock?: boolean
           name?: string
           price?: number
           updated_at?: string
+          usage_text?: string
         }
         Relationships: []
       }
