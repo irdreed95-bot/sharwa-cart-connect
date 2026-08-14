@@ -112,6 +112,12 @@ function AdminPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
+  const [unlocked, setUnlocked] = useState(false);
+
+  useEffect(() => {
+    setUnlocked(sessionStorage.getItem(PANEL_KEY) === "1");
+  }, []);
+
 
   useEffect(() => {
     let active = true;
