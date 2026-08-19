@@ -264,6 +264,7 @@ function Dashboard() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["admin-products"],
@@ -449,7 +450,7 @@ function Dashboard() {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) void handleUpload(file);
+                  if (file) void handleUpload([file], "main");
                 }}
               />
               <Button
