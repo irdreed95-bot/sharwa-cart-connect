@@ -479,6 +479,67 @@ function Dashboard() {
               </div>
             </div>
 
+            <div className="space-y-2 sm:col-span-2">
+              <Label>صور إضافية</Label>
+              <input
+                ref={galleryRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length) void handleUpload(files, "gallery");
+                }}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploading}
+                  onClick={() => galleryRef.current?.click()}
+                >
+                  <Upload className="size-4" />
+                  رفع صور إضافية
+                </Button>
+                {form.images.map((url) => (
+                  <div key={url} className="relative">
+                    <img src={url} alt="صورة إضافية" className="size-14 rounded-lg object-cover" />
+                    <button
+                      type="button"
+                      aria-label="حذف الصورة"
+                      onClick={() =>
+                        setForm((f) => ({ ...f, images: f.images.filter((u) => u !== url) }))
+                      }
+                      className="absolute -top-2 -left-2 rounded-full bg-destructive p-1 text-destructive-foreground"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="p-features">المواصفات (سطر لكل ميزة)</Label>
+              <Textarea
+                id="p-features"
+                rows={4}
+                value={form.features}
+                onChange={(e) => setForm({ ...form, features: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="p-usage">الوصف التسويقي</Label>
+              <Textarea
+                id="p-usage"
+                rows={4}
+                value={form.usage_text}
+                onChange={(e) => setForm({ ...form, usage_text: e.target.value })}
+              />
+            </div>
+
             <div className="flex gap-2 sm:col-span-2">
               <Button
                 type="submit"
